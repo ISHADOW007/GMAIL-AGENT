@@ -1,0 +1,94 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 1243 >>
+stream
+BT
+/F1 11 Tf
+50 790 Td
+14 TL
+(AI Email Agent - Execution Flowchart) Tj
+T*
+() Tj
+T*
+(Shared pipeline:) Tj
+T*
+(START -> Fetch unread emails -> Normalize email -> Load thread history) Tj
+T*
+(-> Load memory -> Classify intent, urgency, risk -> Route decision) Tj
+T*
+() Tj
+T*
+(Top-level branches:) Tj
+T*
+(1. ignore) Tj
+T*
+(   Reason: newsletters, spam, or classification.action = ignore) Tj
+T*
+(   Flow: ignore_email -> update_memory -> mark_processed -> END) Tj
+T*
+() Tj
+T*
+(2. draft) Tj
+T*
+(   Reason: low-risk replyable email) Tj
+T*
+(   Flow: retrieve_context -> draft_reply -> safety_check -> Delivery decision) Tj
+T*
+(   Delivery decision:) Tj
+T*
+(   - AUTO_SEND = true and safe_to_send = true -> Auto send) Tj
+T*
+(   - Otherwise -> Save draft) Tj
+T*
+(   Then: update_memory -> mark_processed -> END) Tj
+T*
+() Tj
+T*
+(3. human_review) Tj
+T*
+(   Reason: low confidence, VIP sender, or sensitive content) Tj
+T*
+(   Flow: human_review -> Human decision) Tj
+T*
+(   - approve -> send_or_save) Tj
+T*
+(   - revise -> revise_reply -> human_review) Tj
+T*
+(   - reject -> update_memory) Tj
+T*
+(   Then: mark_processed -> END) Tj
+T*
+() Tj
+T*
+(Key note:) Tj
+T*
+(Auto send is not a top-level branch. It is a delivery outcome inside the draft path.) Tj
+T*
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000311 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1606
+%%EOF

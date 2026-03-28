@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "email-agent"
+version = "0.1.0"
+description = "A LangGraph-powered email agent scaffold in Python."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "langgraph>=0.2.0",
+  "langchain-openai>=0.2.0",
+  "google-api-python-client>=2.170.0",
+  "google-auth-httplib2>=0.2.0",
+  "google-auth-oauthlib>=1.2.2",
+  "fastapi>=0.115.0",
+  "pymongo>=4.8.0",
+  "python-dotenv>=1.0.1",
+  "pydantic>=2.8.0",
+  "uvicorn>=0.30.0",
+]
+
+[project.scripts]
+email-agent = "email_agent.main:main"
+email-agent-api = "email_agent.api.app:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

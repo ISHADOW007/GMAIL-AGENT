@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Email Agent Execution Flowchart</title>
+  <style>
+    :root {
+      --bg: #f7f3ea;
+      --panel: #fffdf8;
+      --line: #2d2d2d;
+      --text: #222;
+      --muted: #555;
+      --purple: #8f6df4;
+      --purple-fill: #efe9ff;
+      --coral-fill: #fff0eb;
+      --sea-fill: #eef8fb;
+      --mint-fill: #eef9ee;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(180deg, #f8f2e8 0%, #f5efe7 100%);
+      color: var(--text);
+    }
+
+    .page {
+      width: 1400px;
+      margin: 0 auto;
+      padding: 32px 28px 40px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 34px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    p.lead {
+      margin: 0 0 20px;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .canvas {
+      background: rgba(255, 253, 248, 0.82);
+      border: 1px solid rgba(34, 34, 34, 0.08);
+      border-radius: 28px;
+      box-shadow: 0 20px 60px rgba(80, 65, 40, 0.10);
+      padding: 24px 18px;
+    }
+
+    .caption {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .note {
+      background: rgba(255,255,255,0.68);
+      border: 1px solid rgba(34,34,34,0.08);
+      border-radius: 16px;
+      padding: 12px 14px;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .note strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+
+    @page {
+      size: A4 landscape;
+      margin: 8mm;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>AI Email Agent Execution Flowchart</h1>
+    <p class="lead">Shared pipeline, three top-level branches, and a nested delivery decision inside the draft path.</p>
+
+    <div class="canvas">
+      <svg width="1340" height="980" viewBox="0 0 1340 980" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Execution flowchart">
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L8,3 z" fill="#2d2d2d"></path>
+          </marker>
+          <style>
+            .box { fill: var(--panel); stroke: var(--purple); stroke-width: 2; rx: 16; }
+            .diamond { fill: var(--purple-fill); stroke: var(--purple); stroke-width: 2; }
+            .mutedbox { fill: #fffdf9; stroke: #d5cfc4; stroke-width: 1.5; rx: 14; }
+            .ignorebox { fill: var(--coral-fill); stroke: var(--purple); stroke-width: 2; rx: 16; }
+            .draftbox { fill: var(--sea-fill); stroke: var(--purple); stroke-width: 2; rx: 16; }
+            .reviewbox { fill: var(--mint-fill); stroke: var(--purple); stroke-width: 2; rx: 16; }
+            .label { fill: #222; font: 600 15px 'Segoe UI', Arial, sans-serif; }
+            .small { fill: #555; font: 13px 'Segoe UI', Arial, sans-serif; }
+            .tiny { fill: #555; font: 12px 'Segoe UI', Arial, sans-serif; }
+            .line { stroke: #2d2d2d; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+          </style>
+        </defs>
+
+        <rect class="box" x="560" y="10" width="220" height="56" rx="16"></rect>
+        <text class="label" x="670" y="44" text-anchor="middle">START</text>
+
+        <path class="line" d="M670 66 L670 95"></path>
+        <rect class="box" x="500" y="100" width="340" height="62" rx="16"></rect>
+        <text class="label" x="670" y="138" text-anchor="middle">Fetch unread emails</text>
+
+        <path class="line" d="M670 162 L670 191"></path>
+        <rect class="box" x="430" y="196" width="480" height="64" rx="16"></rect>
+        <text class="label" x="670" y="234" text-anchor="middle">Normalize email + load thread history + load memory</text>
+
+        <path class="line" d="M670 260 L670 289"></path>
+        <rect class="box" x="470" y="294" width="400" height="64" rx="16"></rect>
+        <text class="label" x="670" y="332" text-anchor="middle">Classify intent, urgency, and risk</text>
+
+        <path class="line" d="M670 358 L670 392"></path>
+        <polygon class="diamond" points="670,392 790,492 670,592 550,492"></polygon>
+        <text class="label" x="670" y="500" text-anchor="middle">Route decision</text>
+
+        <path class="line" d="M610 532 C520 570, 440 600, 360 635"></path>
+        <path class="line" d="M670 592 L670 635"></path>
+        <path class="line" d="M730 532 C820 570, 900 600, 980 635"></path>
+
+        <rect class="mutedbox" x="236" y="590" width="84" height="28" rx="10"></rect>
+        <text class="small" x="278" y="609" text-anchor="middle">ignore</text>
+
+        <rect class="mutedbox" x="628" y="604" width="84" height="28" rx="10"></rect>
+        <text class="small" x="670" y="623" text-anchor="middle">draft</text>
+
+        <rect class="mutedbox" x="1008" y="590" width="138" height="28" rx="10"></rect>
+        <text class="small" x="1077" y="609" text-anchor="middle">human_review</text>
+
+        <rect class="ignorebox" x="180" y="640" width="196" height="74" rx="16"></rect>
+        <text class="label" x="278" y="683" text-anchor="middle">Ignore</text>
+        <text class="tiny" x="278" y="740" text-anchor="middle">For newsletters, spam, or</text>
+        <text class="tiny" x="278" y="756" text-anchor="middle">classification.action = ignore</text>
+        <text class="tiny" x="278" y="780" text-anchor="middle">ignore_email -&gt; update_memory -&gt; mark_processed</text>
+
+        <rect class="draftbox" x="572" y="640" width="196" height="74" rx="16"></rect>
+        <text class="label" x="670" y="683" text-anchor="middle">Draft path</text>
+        <text class="tiny" x="670" y="740" text-anchor="middle">For low-risk replyable emails</text>
+        <text class="tiny" x="670" y="756" text-anchor="middle">retrieve_context -&gt; draft_reply -&gt; safety_check</text>
+
+        <rect class="reviewbox" x="980" y="640" width="196" height="74" rx="16"></rect>
+        <text class="label" x="1078" y="683" text-anchor="middle">Human review</text>
+        <text class="tiny" x="1078" y="740" text-anchor="middle">For low-confidence, VIP,</text>
+        <text class="tiny" x="1078" y="756" text-anchor="middle">or sensitive emails</text>
+        <text class="tiny" x="1078" y="780" text-anchor="middle">review -&gt; approve / revise / reject</text>
+
+        <path class="line" d="M670 714 L670 745"></path>
+        <polygon class="diamond" points="670,745 790,840 670,935 550,840"></polygon>
+        <text class="label" x="670" y="848" text-anchor="middle">Delivery decision</text>
+
+        <path class="line" d="M610 882 C555 915, 505 930, 450 952"></path>
+        <path class="line" d="M730 882 C785 915, 835 930, 890 952"></path>
+
+        <rect class="mutedbox" x="310" y="884" width="178" height="28" rx="10"></rect>
+        <text class="small" x="399" y="903" text-anchor="middle">AUTO_SEND=true and safe</text>
+
+        <rect class="mutedbox" x="842" y="884" width="100" height="28" rx="10"></rect>
+        <text class="small" x="892" y="903" text-anchor="middle">Otherwise</text>
+
+        <rect class="draftbox" x="308" y="954" width="184" height="70" rx="16"></rect>
+        <text class="label" x="400" y="996" text-anchor="middle">Auto send</text>
+
+        <rect class="draftbox" x="800" y="954" width="184" height="70" rx="16"></rect>
+        <text class="label" x="892" y="996" text-anchor="middle">Save draft</text>
+      </svg>
+    </div>
+
+    <div class="caption">
+      <div class="note">
+        <strong>Top-level routes</strong>
+        Ignore, Draft, and Human review are the only first-level branches after classification.
+      </div>
+      <div class="note">
+        <strong>Nested delivery logic</strong>
+        Auto send is not a top-level branch. It appears only after the draft path passes safety.
+      </div>
+      <div class="note">
+        <strong>Human review</strong>
+        Sensitive or uncertain messages pause for human approval, revision, or rejection.
+      </div>
+    </div>
+  </div>
+</body>
+</html>

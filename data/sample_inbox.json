@@ -1,0 +1,20 @@
+[
+  {
+    "id": "email-001",
+    "from_address": "alex@acme.io",
+    "to_address": "you@example.com",
+    "subject": "Question about enterprise pricing",
+    "body": "Hi, we are evaluating your product for a 25-person team. Can you share pricing details and whether you support SSO?",
+    "received_at": "2026-03-27T09:00:00+05:30",
+    "is_unread": false
+  },
+  {
+    "id": "email-002",
+    "from_address": "newsletter@example.org",
+    "to_address": "you@example.com",
+    "subject": "Weekly product roundup",
+    "body": "Here is your weekly roundup of product news, launches, and trends.",
+    "received_at": "2026-03-27T09:15:00+05:30",
+    "is_unread": false
+  }
+]
