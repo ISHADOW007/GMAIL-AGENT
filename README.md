@@ -1,154 +1,268 @@
-# AI Email Agent
+# Gmail AI Email Agent
 
-A full-stack AI email workflow system built with Python, LangGraph, FastAPI, React, Gmail API, and MongoDB-ready memory.
+A Gmail-first AI email workflow built with Python, LangGraph, FastAPI, React, and MongoDB-backed LangGraph persistence.
 
-The project reads unread emails, understands thread context, classifies intent and risk, routes messages into ignore, draft, or human-review paths, and exposes the whole workflow through a web dashboard.
+The project reads unread Gmail messages, loads Gmail thread history, classifies intent and risk, drafts replies, pauses natively for human review with LangGraph `interrupt(...)`, and resumes from the saved checkpoint when the reviewer approves, revises, or rejects.
 
-## Overview
+## What It Does
 
-This project is designed as a workflow-driven email agent rather than a single prompt wrapper. It combines:
+- Reads unread emails from Gmail with the Gmail API
+- Preserves Gmail `thread_id` for thread-aware processing
+- Runs the workflow node by node in LangGraph
+- Drafts replies with OpenAI models
+- Runs a safety check before delivery
+- Uses native LangGraph human-in-the-loop pause/resume
+- Saves long-term memory in LangGraph Mongo store
+- Uses semantic search over long-term memory when embeddings are configured
+- Exposes a FastAPI backend and React dashboard for execution and review
 
-- a mailbox layer that supports local demo data, Gmail API, and IMAP/SMTP
-- a LangGraph state machine for email execution
-- human-in-the-loop review with approve, revise, and reject actions
-- a FastAPI backend for triggering runs and reading live state
-- a React frontend for monitoring execution, inspecting messages, and reviewing decisions
-
-The current project is a strong working MVP / V2-style build for learning, demos, and further extension.
-
-## Features
-
-- Gmail API email processing with OAuth
-- local demo backend for safe testing
-- IMAP/SMTP fallback support
-- newest-first unread email handling
-- thread-aware context loading
-- intent, urgency, and risk classification
-- explicit workflow routing with LangGraph
-- automated draft generation
-- safety checks before delivery
-- human review queue with approve / revise / reject actions
-- resumable review flow for newer review items
-- FastAPI backend with dashboard, run, review, and progress APIs
-- React dashboard with separate pages for dashboard, execution, flow, and diagram views
-- live node-by-node execution progress UI
-- visual execution flowchart and exported PDF diagrams in [docs](C:\Users\satya\Desktop\Email-agent\docs)
-- Mongo-ready memory scaffolding for contacts, threads, drafts, and reviews
-
-## Tech Stack
+## Current Stack
 
 - Backend: Python, FastAPI
 - Workflow: LangGraph
 - LLM: LangChain OpenAI
-- Frontend: React, Vite
-- Email: Gmail API, IMAP/SMTP, local JSON demo inbox
-- Database / memory: MongoDB
-- Testing: Python `unittest`
+- Mailbox: Gmail API
+- Short-term memory: LangGraph MongoDB checkpointer
+- Long-term memory: LangGraph Mongo store
+- Frontend: React + Vite
+- Tests: Python `unittest`
 
-## Architecture
+## High-Level Architecture
 
 ```mermaid
 flowchart LR
-    A["Mailbox backend"] --> B["LangGraph workflow"]
-    B --> C["Memory layer"]
-    B --> D["Review queue"]
-    B --> E["Delivery layer"]
+    A["Gmail inbox"] --> B["LangGraph workflow"]
+    B --> C["LangGraph checkpointer"]
+    B --> D["LangGraph long-term memory"]
+    B --> E["Review queue + dashboard"]
+    E --> B
     F["FastAPI backend"] --> B
-    F --> D
     G["React frontend"] --> F
 ```
 
-## Execution Flow
+## Workflow
 
 ```mermaid
 flowchart TD
-    A["Unread email arrives"] --> B["Fetch unread emails"]
-    B --> C["Normalize email"]
-    C --> D["Load thread history"]
-    D --> E["Load memory"]
-    E --> F["Classify intent, urgency, risk"]
-    F --> G{"Route decision"}
+    A["START"] --> B["normalize_email"]
+    B --> C["load_thread"]
+    C --> D["load_memory"]
+    D --> E["classify_email"]
 
-    G -->|"ignore"| H["Ignore path"]
-    G -->|"draft"| I["Draft path"]
-    G -->|"human_review"| J["Human review path"]
+    E --> F["ignore_email"]
+    E --> G["retrieve_context"]
+    E --> H["queue_human_review"]
 
-    H --> H1["ignore_email"]
-    H1 --> H2["update_memory"]
-    H2 --> H3["mark_processed"]
+    G --> I["draft_reply"]
+    I --> J["safety_check"]
 
-    I --> I1["retrieve_context"]
-    I1 --> I2["draft_reply"]
-    I2 --> I3["safety_check"]
-    I3 --> K{"Delivery decision"}
-    K -->|"AUTO_SEND=true and safe"| L["Auto send"]
-    K -->|"Otherwise"| M["Save draft"]
+    J --> K["send_or_save"]
+    J --> H
+
+    H --> L["human_review"]
+
+    L --> K
+    L --> M["revise_reply"]
     L --> N["update_memory"]
-    M --> N
-    N --> O["mark_processed"]
 
-    J --> J1["human_review"]
-    J1 --> J2{"Human decision"}
-    J2 -->|"approve"| K
-    J2 -->|"revise"| J3["revise_reply"]
-    J2 -->|"reject"| J4["update_memory"]
-    J3 --> J1
-    J4 --> J5["mark_processed"]
+    M --> H
+
+    F --> N
+    K --> N
+    N --> O["mark_processed"]
+    O --> P["END"]
 ```
 
-Top-level routes:
+## Human Review Flow
 
-- `ignore`: newsletters, spam, or irrelevant emails
-- `draft`: replyable low-risk emails
-- `human_review`: sensitive, ambiguous, or reviewer-required emails
+The graph uses native LangGraph human-in-the-loop behavior.
 
-Important detail:
+1. `queue_human_review` creates or refreshes the dashboard review item.
+2. `human_review` calls `interrupt(...)`.
+3. LangGraph saves the workflow state in the checkpointer.
+4. The dashboard calls the backend review API.
+5. The backend resumes the same graph with `Command(resume=...)`.
 
-- `auto send` is not a top-level route
-- it is a delivery outcome inside the `draft` path after safety checks
-
-## Project Structure
+Approve path:
 
 ```text
-email-agent/
-├─ data/
-├─ docs/
-├─ frontend/
-│  ├─ src/
-│  │  ├─ components/
-│  │  ├─ lib/
-│  │  ├─ pages/
-│  │  └─ styles/
-├─ src/
-│  └─ email_agent/
-│     ├─ api/
-│     ├─ db/
-│     ├─ graph/
-│     │  └─ nodes/
-│     ├─ llm/
-│     ├─ models/
-│     ├─ services/
-│     ├─ config.py
-│     ├─ mailbox.py
-│     └─ main.py
-├─ tests/
-├─ .env.example
-├─ pyproject.toml
-└─ README.md
+human_review -> send_or_save -> update_memory -> mark_processed
 ```
 
-## Main Pages
+Revise path:
 
-The frontend includes separate pages for:
+```text
+human_review -> revise_reply -> queue_human_review -> human_review
+```
 
-- `Dashboard`: operational overview, inbox snapshot, review queue, detail panel
-- `Execution`: live node-by-node run progress for each email
-- `Flow`: explanation-focused workflow view
-- `Diagram`: visual execution flowchart view
+Reject path:
 
-## Backend API
+```text
+human_review -> update_memory -> mark_processed
+```
 
-Main API routes in [app.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\api\app.py):
+## Memory Design
+
+### Short-Term Memory
+
+Short-term memory is the LangGraph checkpointer.
+
+It stores:
+
+- current graph state
+- node outputs
+- pause/resume state for human review
+
+Each email run is invoked with:
+
+```text
+thread_id = email.id
+```
+
+That lets LangGraph restore the exact paused workflow later.
+
+### Long-Term Memory
+
+Long-term memory is stored through the LangGraph Mongo store adapter.
+
+Reusable namespaces:
+
+- `contacts`
+- `threads`
+- `reply_examples`
+- `business_facts`
+
+History namespaces:
+
+- `review_history`
+- `draft_history`
+
+Only compact reusable memory is loaded back into `state["memory"]`.
+Detailed history stays stored for audit and traceability.
+
+### Semantic Search
+
+When embeddings are configured, long-term memory retrieval uses semantic search for:
+
+- `reply_examples`
+- `business_facts`
+
+This helps the agent retrieve relevant past replies and facts using the current email subject/body as the search query instead of only exact matching.
+
+### LLM Memory Update
+
+Long-term memory updates are not only manual now.
+
+After a run finishes, the memory layer can use the LLM to extract:
+
+- sender importance
+- sender preferences
+- sender notes
+- compact thread summary
+- durable business facts
+
+Those extracted memory updates are merged with previously stored long-term memory before saving.
+
+## Environment Variables
+
+Copy [.env.example](C:\Users\satya\Desktop\Email-agent\.env.example) to `.env`.
+
+Required:
+
+- `OPENAI_API_KEY`
+- `GMAIL_CREDENTIALS_PATH`
+
+Important options:
+
+```env
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-4.1-mini
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_EMBEDDING_DIMENSIONS=1536
+
+AUTO_SEND=false
+MAX_EMAILS=5
+
+GMAIL_USER_ID=me
+GMAIL_CREDENTIALS_PATH=credentials.json
+GMAIL_TOKEN_PATH=data/gmail_token.json
+GMAIL_OPEN_BROWSER=false
+GMAIL_LABEL_PREFIX=AI
+
+MONGODB_URI=
+MONGODB_DATABASE=email_agent
+MONGODB_STORE_COLLECTION=long_term_memory
+MONGODB_MEMORY_NAMESPACE=email_agent
+```
+
+Notes:
+
+- `AUTO_SEND=false` means replies are saved as drafts unless you explicitly enable sending.
+- If `MONGODB_URI` is empty, the app falls back to in-memory LangGraph storage.
+- Gmail OAuth token is stored at `data/gmail_token.json`.
+
+## Installation
+
+### Backend
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -e .
+```
+
+### Frontend
+
+```powershell
+cd frontend
+npm install
+```
+
+## Running
+
+### CLI
+
+```powershell
+email-agent
+```
+
+Useful flags:
+
+```powershell
+email-agent --limit 3
+email-agent --show-body
+```
+
+### Backend API
+
+```powershell
+email-agent-api
+```
+
+or
+
+```powershell
+python -m uvicorn email_agent.api.app:app --reload
+```
+
+Backend URL:
+
+- [http://127.0.0.1:8000](http://127.0.0.1:8000)
+
+### Frontend
+
+```powershell
+cd frontend
+npm run dev
+```
+
+Frontend URL:
+
+- [http://127.0.0.1:5173](http://127.0.0.1:5173)
+
+## API Endpoints
+
+Main routes in [app.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\api\app.py):
 
 - `GET /api/health`
 - `GET /api/dashboard`
@@ -159,233 +273,73 @@ Main API routes in [app.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\a
 - `POST /api/reviews/{review_id}/revise`
 - `POST /api/reviews/{review_id}/reject`
 
-## Getting Started
+## Dashboard Data Files
 
-### 1. Create a virtual environment
+The app still keeps a few local operational files:
 
-Windows:
+- `data/review_queue.json`
+- `data/run_progress.json`
+- `data/last_run.json`
+
+These support the dashboard and review queue UI.
+
+## Project Structure
+
+```text
+email-agent/
+|-- data/
+|-- frontend/
+|   |-- src/
+|-- src/
+|   |-- email_agent/
+|   |   |-- api/
+|   |   |-- db/
+|   |   |-- graph/
+|   |   |   |-- nodes/
+|   |   |-- llm/
+|   |   |-- models/
+|   |   |-- services/
+|   |   |-- config.py
+|   |   |-- mailbox.py
+|   |   `-- main.py
+|-- tests/
+|-- .env.example
+|-- pyproject.toml
+`-- README.md
+```
+
+## Key Files
+
+If you want to understand the project quickly, start here:
+
+- [mailbox.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\mailbox.py)
+- [builder.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\graph\builder.py)
+- [state.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\graph\state.py)
+- [human_review.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\graph\nodes\human_review.py)
+- [queue_human_review.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\graph\nodes\queue_human_review.py)
+- [review_resume_service.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\services\review_resume_service.py)
+- [mongo.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\db\mongo.py)
+- [agent_service.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\services\agent_service.py)
+- [app.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\api\app.py)
+
+## Testing
+
+Run the unit tests:
 
 ```powershell
-py -3.11 -m venv .venv
-.venv\Scripts\Activate.ps1
-```
-
-macOS / Linux:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-### 2. Install backend dependencies
-
-```bash
-pip install -e .
-```
-
-### 3. Configure environment variables
-
-Copy [.env.example](C:\Users\satya\Desktop\Email-agent\.env.example) to `.env`:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Then update the values you need.
-
-Minimum local setup:
-
-- `OPENAI_API_KEY`
-- `EMAIL_BACKEND=local`
-
-Optional:
-
-- `MONGODB_URI` for Mongo-backed memory
-- Gmail OAuth settings for Gmail mode
-- IMAP/SMTP settings for generic mailbox mode
-
-## Running the Project
-
-### Run the CLI agent
-
-```bash
-email-agent
-```
-
-or:
-
-```bash
-python -m email_agent
-```
-
-Useful flags:
-
-```bash
-python -m email_agent --limit 3
-python -m email_agent --show-body
-```
-
-### Run the backend API
-
-```bash
-email-agent-api
-```
-
-or:
-
-```bash
-python -m uvicorn email_agent.api.app:app --reload
-```
-
-Backend URL:
-
-- [http://127.0.0.1:8000](http://127.0.0.1:8000)
-
-Useful endpoints:
-
-- [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health)
-- [http://127.0.0.1:8000/api/dashboard](http://127.0.0.1:8000/api/dashboard)
-- [http://127.0.0.1:8000/api/progress](http://127.0.0.1:8000/api/progress)
-
-### Run the frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend URL:
-
-- [http://127.0.0.1:5173](http://127.0.0.1:5173)
-
-### Run tests
-
-```bash
 python -m unittest discover -s tests -v
 ```
 
-### Build the frontend
-
-```bash
-cd frontend
-npm run build
-```
-
-## Backend Modes
-
-### Local demo mode
-
-Uses JSON files for safe experimentation.
-
-- inbox: [sample_inbox.json](C:\Users\satya\Desktop\Email-agent\data\sample_inbox.json)
-- outbox: [outbox.json](C:\Users\satya\Desktop\Email-agent\data\outbox.json)
-- review queue: [review_queue.json](C:\Users\satya\Desktop\Email-agent\data\review_queue.json)
-- last run snapshot: [last_run.json](C:\Users\satya\Desktop\Email-agent\data\last_run.json)
-
-Recommended for first-time testing.
-
-### Gmail mode
-
-Uses the Gmail API instead of IMAP/SMTP.
-
-Capabilities:
-
-- reads unread Gmail inbox messages
-- preserves Gmail thread IDs
-- creates native Gmail drafts
-- sends Gmail replies
-- removes `UNREAD` after processing
-- applies outcome labels such as `AI-Ignored`, `AI-Drafted`, `AI-Sent`, and `AI-Needs-Human`
-
-Suggested `.env` values:
-
-```env
-EMAIL_BACKEND=gmail
-GMAIL_USER_ID=me
-GMAIL_CREDENTIALS_PATH=credentials.json
-GMAIL_TOKEN_PATH=data/gmail_token.json
-AUTO_SEND=false
-GMAIL_LABEL_PREFIX=AI
-```
-
-To use Gmail mode:
-
-1. Enable the Gmail API in Google Cloud.
-2. Create an OAuth Desktop App client.
-3. Download `credentials.json` into the project root.
-4. Run the app once and complete OAuth consent.
-5. Let the app create `data/gmail_token.json`.
-
-### IMAP/SMTP mode
-
-Useful for generic mailbox integration when Gmail API is not the target.
-
-## Human Review Workflow
-
-The review system supports:
-
-- `approve`: resume the saved review state and continue delivery
-- `revise`: regenerate the draft from reviewer comments and keep it pending
-- `reject`: close the item without sending
-
-Important note:
-
-- newer review items support full resume behavior
-- legacy review items may only support status updates if they were created before state snapshots were added
-
-## Visual Docs
-
-The project includes exported workflow diagrams in [docs](C:\Users\satya\Desktop\Email-agent\docs):
-
-- [execution_flowchart.html](C:\Users\satya\Desktop\Email-agent\docs\execution_flowchart.html)
-- [execution_flowchart.pdf](C:\Users\satya\Desktop\Email-agent\docs\execution_flowchart.pdf)
-- [execution_flowchart_visual.pdf](C:\Users\satya\Desktop\Email-agent\docs\execution_flowchart_visual.pdf)
-
-## Key Files To Understand
-
-If you want to learn the codebase quickly, read these first:
-
-- [main.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\main.py)
-- [mailbox.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\mailbox.py)
-- [builder.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\graph\builder.py)
-- [routes.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\graph\routes.py)
-- [human_review.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\graph\nodes\human_review.py)
-- [review_resume_service.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\services\review_resume_service.py)
-- [app.py](C:\Users\satya\Desktop\Email-agent\src\email_agent\api\app.py)
-- [DashboardPage.jsx](C:\Users\satya\Desktop\Email-agent\frontend\src\pages\DashboardPage.jsx)
-
-## Why This Project Is Interesting
-
-This repo demonstrates:
-
-- workflow-based AI application design
-- safe LLM routing instead of blind auto-send
-- mailbox abstraction across providers
-- human-in-the-loop review
-- thread-aware email handling
-- a full-stack control plane around an agentic backend
-
 ## Current Status
 
-This project is complete as a strong working MVP / V2-style product for:
+This repo is currently:
 
-- portfolio projects
-- demos
-- learning LangGraph and workflow orchestration
-- experimenting with Gmail-connected AI workflows
+- Gmail-only
+- LangGraph-native for human review pause/resume
+- Mongo-ready for both short-term and long-term memory
+- using semantic long-term memory retrieval when embeddings are available
+- suitable for demos, portfolio work, and iterative product building
 
-It is not positioned yet as a fully deployed enterprise SaaS.
+## Resume / Interview Summary
 
-## Future Improvements
-
-- scheduler / background worker
-- richer Mongo memory learning
-- attachment parsing
-- audit and analytics views
-- Docker and deployment setup
-- Microsoft Graph / Outlook support
-
-## Resume / Portfolio Summary
-
-Built a full-stack AI Email Agent using Python, LangGraph, FastAPI, React, Gmail API, and MongoDB-ready memory for thread-aware email processing, automated drafting, human review, resumable workflow actions, and live operational monitoring.
+Built a Gmail-based AI email agent using Python, LangGraph, FastAPI, React, Gmail API, and MongoDB-backed LangGraph persistence for thread-aware processing, native human-in-the-loop review, resumable workflows, semantic long-term memory retrieval, and LLM-assisted memory updates.
