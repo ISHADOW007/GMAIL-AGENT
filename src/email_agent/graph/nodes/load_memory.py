@@ -1,3 +1,4 @@
+﻿"""Node that loads sender/thread memory from the optional Mongo store."""
 from __future__ import annotations
 
 from email_agent.db.mongo import MongoMemoryStore
@@ -12,3 +13,4 @@ def make_load_memory_node(memory_store: MongoMemoryStore):
         return {"memory": memory.model_dump()}
 
     return load_memory
+

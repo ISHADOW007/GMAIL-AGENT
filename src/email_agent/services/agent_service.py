@@ -1,3 +1,4 @@
+﻿"""Shared runtime orchestration used by both the CLI and FastAPI backend."""
 from __future__ import annotations
 
 import json
@@ -8,9 +9,9 @@ from typing import Any
 from langchain_openai import ChatOpenAI
 
 from email_agent.config import load_settings
-from email_agent.db.mongo import MongoMemoryStore
+from email_agent.db.mongo import MongoMemoryStore, MongoShortTermCheckpointer
 from email_agent.graph.builder import build_email_graph
-from email_agent.mailbox import LocalMailboxClient, build_mailbox_client
+from email_agent.mailbox import build_mailbox_client
 from email_agent.models import ClassificationResult, DraftReply, HumanDecision
 from email_agent.services.review_service import list_review_items
 
@@ -26,6 +27,7 @@ NODE_EXECUTION_ORDER = [
     "retrieve_context",
     "draft_reply",
     "safety_check",
+    "queue_human_review",
     "human_review",
     "revise_reply",
     "send_or_save",
@@ -54,6 +56,7 @@ def _build_runtime(progress_callback=None):
     settings = load_settings()
     mailbox = build_mailbox_client(settings)
     memory_store = MongoMemoryStore.from_settings(settings)
+    short_term_memory = MongoShortTermCheckpointer.from_settings(settings)
     llm = ChatOpenAI(
         model=settings.openai_model,
         api_key=settings.openai_api_key,
@@ -64,9 +67,10 @@ def _build_runtime(progress_callback=None):
         mailbox,
         settings,
         memory_store=memory_store,
+        checkpointer=short_term_memory.saver,
         progress_callback=progress_callback,
     )
-    return settings, mailbox, graph
+    return settings, mailbox, graph, short_term_memory
 
 
 def _serialize_unread_preview(mailbox: Any, limit: int) -> list[dict[str, Any]]:
@@ -154,8 +158,10 @@ def _summarize_node_output(node_name: str, payload: dict[str, Any]) -> str:
         return f"Drafted reply: {draft.get('subject', 'Untitled draft')}"
     if node_name == "send_or_save":
         return f"Delivery status: {payload.get('delivery_status', 'unknown')}"
+    if node_name == "queue_human_review":
+        return f"Prepared review item: {payload.get('review_id', 'pending')}"
     if node_name == "human_review":
-        return f"Queued review item: {payload.get('review_id', 'pending')}"
+        return "Paused for a human decision."
     if node_name == "mark_processed":
         return "Marked email as processed in the mailbox."
     if node_name == "ignore_email":
@@ -210,6 +216,17 @@ def _update_node_execution(
         node_execution["status"] = "error"
         node_execution["summary"] = payload.get("error", "Node execution failed.")
         node_execution["completed_at"] = now
+        node_execution["result_preview"] = _truncate_preview(payload)
+        return
+
+    if phase == "interrupt":
+        node_execution["status"] = "paused"
+        node_execution["summary"] = "Paused and waiting for a human decision."
+        node_execution["completed_at"] = now
+        if node_execution.get("started_at"):
+            started_at = datetime.fromisoformat(node_execution["started_at"])
+            completed_at = datetime.fromisoformat(now)
+            node_execution["duration_ms"] = int((completed_at - started_at).total_seconds() * 1000)
         node_execution["result_preview"] = _truncate_preview(payload)
         return
 
@@ -277,12 +294,15 @@ def run_agent(limit: int | None = None, include_draft_body: bool = False) -> dic
             current_email_run["active_node"] = None
         elif phase == "start":
             current_email_run["active_node"] = node_name
+        elif phase == "interrupt":
+            current_email_run["active_node"] = None
+            current_email_run["status"] = "paused"
         elif phase == "error":
             current_email_run["active_node"] = node_name
             current_email_run["status"] = "error"
         _write_progress(build_progress_payload(status="running"))
 
-    settings, mailbox, graph = _build_runtime(progress_callback=handle_node_event)
+    settings, mailbox, graph, short_term_memory = _build_runtime(progress_callback=handle_node_event)
     emails = mailbox.fetch_unread(limit=effective_limit)
 
     run_summary: dict[str, Any] = {
@@ -296,6 +316,8 @@ def run_agent(limit: int | None = None, include_draft_body: bool = False) -> dic
 
     try:
         for email in emails:
+            # Emails are fetched in a batch, but each one still gets a separate
+            # graph invocation and its own progress timeline.
             current_email_run = {
                 "id": email.id,
                 "subject": email.subject,
@@ -308,7 +330,14 @@ def run_agent(limit: int | None = None, include_draft_body: bool = False) -> dic
             email_runs.append(current_email_run)
             _write_progress(build_progress_payload(status="running"))
 
-            result = graph.invoke({"email": email.model_dump(mode="json")})
+            result = graph.invoke(
+                {
+                    "run_id": email.id,
+                    "email": email.model_dump(mode="json"),
+                },
+                config=short_term_memory.build_config(email.id),
+            )
+            interrupted = "__interrupt__" in result
             classification = ClassificationResult.model_validate(result["classification"])
 
             item = {
@@ -340,7 +369,7 @@ def run_agent(limit: int | None = None, include_draft_body: bool = False) -> dic
             run_summary["results"].append(item)
             current_email_run["delivery_status"] = item["delivery_status"]
             current_email_run["final_action"] = item["action"]
-            current_email_run["status"] = "completed"
+            current_email_run["status"] = "paused" if interrupted else "completed"
             _finalize_node_executions(current_email_run)
             _write_progress(build_progress_payload(status="running"))
     except Exception as error:
@@ -365,14 +394,6 @@ def collect_dashboard_snapshot(limit: int = 5) -> dict[str, Any]:
     mailbox = build_mailbox_client(settings)
     unread_preview = _serialize_unread_preview(mailbox, limit)
 
-    if isinstance(mailbox, LocalMailboxClient):
-        outbox_items = [
-            {**item, "kind": "outbox"}
-            for item in list(reversed(_read_json_file(mailbox.outbox_path)))[:8]
-        ]
-    else:
-        outbox_items = []
-
     review_items = list_review_items(status="pending", limit=8)
     last_run = {}
     if LAST_RUN_PATH.exists():
@@ -383,15 +404,13 @@ def collect_dashboard_snapshot(limit: int = 5) -> dict[str, Any]:
         "auto_send": settings.auto_send,
         "max_emails": settings.max_emails,
         "mongodb_enabled": bool(settings.mongodb_uri),
-        "gmail_mode": settings.email_backend == "gmail",
         "stats": {
             "unread_count": len(unread_preview),
-            "outbox_count": len(outbox_items),
             "review_count": len(list_review_items(status="pending")),
             "last_run_processed": last_run.get("processed_count", 0),
         },
         "unread_emails": unread_preview,
-        "outbox_items": outbox_items,
         "review_items": review_items,
         "last_run": last_run,
     }
+

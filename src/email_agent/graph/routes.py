@@ -1,3 +1,4 @@
+﻿"""Pure routing functions that decide which workflow branch runs next."""
 from __future__ import annotations
 
 from email_agent.graph.state import EmailAgentState
@@ -28,8 +29,11 @@ def route_after_safety(state: EmailAgentState) -> str:
 
 def route_after_human_review(state: EmailAgentState) -> str:
     decision = HumanDecision.model_validate(state["human_decision"])
-    if decision.decision == "approve":
+    if decision.decision == "approve" and state.get("draft"):
         return "send_or_save"
+    if decision.decision == "approve":
+        return "update_memory"
     if decision.decision == "revise":
         return "revise_reply"
     return "update_memory"
+

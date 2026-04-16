@@ -1,3 +1,4 @@
+﻿"""CLI runner that executes one batch of unread emails and prints a readable summary."""
 from __future__ import annotations
 
 import argparse
@@ -58,3 +59,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

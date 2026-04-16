@@ -1,3 +1,4 @@
+﻿"""Node that marks the source email as handled in the active mailbox backend."""
 from __future__ import annotations
 
 from email_agent.graph.state import EmailAgentState
@@ -17,3 +18,4 @@ def make_mark_processed_node(mailbox: MailboxClient):
         return {}
 
     return mark_processed
+

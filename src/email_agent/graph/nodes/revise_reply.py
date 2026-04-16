@@ -1,3 +1,4 @@
+﻿"""Node that rewrites an existing draft using reviewer feedback."""
 from __future__ import annotations
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -31,3 +32,4 @@ def make_revise_reply_node(llm: ChatOpenAI):
         return {"draft": revised.model_dump(), "status": "drafted"}
 
     return revise_reply
+

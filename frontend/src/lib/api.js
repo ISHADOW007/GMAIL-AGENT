@@ -1,16 +1,14 @@
+﻿/* Frontend API helpers and shared empty-state structures. */
 export const emptyDashboard = {
-  backend: "unknown",
+  backend: "gmail",
   auto_send: false,
-  gmail_mode: false,
   mongodb_enabled: false,
   stats: {
     unread_count: 0,
-    outbox_count: 0,
     review_count: 0,
     last_run_processed: 0,
   },
   unread_emails: [],
-  outbox_items: [],
   review_items: [],
   last_run: { results: [] },
 };
@@ -40,9 +38,19 @@ export async function requestJson(path, options = {}) {
   });
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `Request failed: ${response.status}`);
+    const raw = await response.text();
+    let message = raw || `Request failed: ${response.status}`;
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed?.detail) {
+        message = parsed.detail;
+      }
+    } catch {
+      // Keep the raw text when the backend response is not JSON.
+    }
+    throw new Error(message);
   }
 
   return response.json();
 }
+

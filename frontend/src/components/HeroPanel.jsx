@@ -1,3 +1,4 @@
+﻿/* Top hero section showing live progress plus run and refresh controls. */
 export default function HeroPanel({ loading, running, progress, onRefresh, onRun }) {
   const status = progress?.status || "idle";
   const currentEmail = progress?.current_email;
@@ -62,3 +63,4 @@ export default function HeroPanel({ loading, running, progress, onRefresh, onRun
     </div>
   );
 }
+

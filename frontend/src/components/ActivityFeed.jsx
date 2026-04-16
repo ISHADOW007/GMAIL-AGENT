@@ -1,3 +1,4 @@
+﻿/* Recent workflow activity feed sourced from the last completed run. */
 import { getItemKey } from "../lib/api";
 
 export default function ActivityFeed({ lastRun, items, onSelect, selectedKey }) {
@@ -54,3 +55,4 @@ export default function ActivityFeed({ lastRun, items, onSelect, selectedKey }) 
     </section>
   );
 }
+

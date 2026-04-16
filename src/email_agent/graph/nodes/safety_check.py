@@ -1,3 +1,4 @@
+﻿"""Node that applies deterministic safety and policy checks before delivery."""
 from __future__ import annotations
 
 from email_agent.graph.state import EmailAgentState
@@ -32,3 +33,4 @@ def make_safety_check_node():
         return {"safety_result": result.model_dump()}
 
     return safety_check
+

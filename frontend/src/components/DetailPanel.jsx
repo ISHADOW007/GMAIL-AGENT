@@ -1,3 +1,4 @@
+﻿/* Context panel that shows the full details of the selected dashboard item. */
 function renderLines(value) {
   if (!value) {
     return "No details available yet.";
@@ -128,3 +129,4 @@ export default function DetailPanel({ item }) {
     </section>
   );
 }
+

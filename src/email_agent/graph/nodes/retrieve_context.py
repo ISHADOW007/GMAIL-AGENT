@@ -1,3 +1,4 @@
+﻿"""Node that assembles prompt-ready context from live thread data and stored memory."""
 from __future__ import annotations
 
 from email_agent.graph.state import EmailAgentState
@@ -23,3 +24,4 @@ def make_retrieve_context_node():
         return {"retrieved_context": context}
 
     return retrieve_context
+

@@ -1,3 +1,4 @@
+﻿"""FastAPI application exposing dashboard, review, run, and progress endpoints."""
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException
@@ -118,3 +119,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

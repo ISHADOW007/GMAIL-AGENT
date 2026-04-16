@@ -1,3 +1,4 @@
+﻿/* Review queue UI with approve, revise, and reject actions. */
 import { useState } from "react";
 
 import EmailList from "./EmailList";
@@ -38,6 +39,11 @@ export default function ReviewQueuePanel({ items, onAction, onSelect, selectedKe
               Legacy item: status can be updated, but full graph resume is not available.
             </span>
           ) : null}
+          {item.resumable && !item.has_draft ? (
+            <span className="review-card__hint">
+              No saved draft yet: approve or reject can continue, but revise is unavailable.
+            </span>
+          ) : null}
           <textarea
             className="review-card__notes"
             rows={3}
@@ -61,7 +67,7 @@ export default function ReviewQueuePanel({ items, onAction, onSelect, selectedKe
             <button
               className="button button--tiny button--revise"
               onClick={() => runAction(item.review_id, "revise")}
-              disabled={Boolean(busyId) || !item.resumable}
+              disabled={Boolean(busyId) || !item.can_revise}
             >
               {busyId === `${item.review_id}:revise` ? "Saving..." : "Revise"}
             </button>
@@ -78,3 +84,4 @@ export default function ReviewQueuePanel({ items, onAction, onSelect, selectedKe
     />
   );
 }
+

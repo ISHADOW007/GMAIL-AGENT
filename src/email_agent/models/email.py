@@ -1,3 +1,4 @@
+﻿"""Pydantic models for raw and normalized email objects."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -26,3 +27,4 @@ class NormalizedEmail(BaseModel):
     summary: str | None = None
     has_attachments: bool = False
     detected_language: str = "en"
+

@@ -1,3 +1,4 @@
+﻿/* Live execution board showing per-email node progress and result previews. */
 import { useEffect, useMemo, useState } from "react";
 
 function formatDuration(durationMs) {
@@ -155,3 +156,4 @@ export default function ExecutionPanel({ progress }) {
     </section>
   );
 }
+

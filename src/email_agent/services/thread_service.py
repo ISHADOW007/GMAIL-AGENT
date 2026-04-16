@@ -1,3 +1,4 @@
+﻿"""Helpers that compact and summarize mailbox thread history for prompting."""
 from __future__ import annotations
 
 from email_agent.models import EmailMessage
@@ -36,3 +37,4 @@ def summarize_thread_messages(
         f"{message['from_address']}: {message['summary']}"
         for message in serialized_messages
     )
+

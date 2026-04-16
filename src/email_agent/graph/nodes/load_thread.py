@@ -1,9 +1,13 @@
+﻿"""Node that fetches prior thread messages from the active mailbox backend."""
 from __future__ import annotations
 
 from email_agent.graph.state import EmailAgentState
 from email_agent.mailbox import MailboxClient
 from email_agent.models import EmailMessage
-from email_agent.services import serialize_thread_messages, summarize_thread_messages
+from email_agent.services.thread_service import (
+    serialize_thread_messages,
+    summarize_thread_messages,
+)
 
 
 def make_load_thread_node(mailbox: MailboxClient):
@@ -16,3 +20,4 @@ def make_load_thread_node(mailbox: MailboxClient):
         }
 
     return load_thread
+

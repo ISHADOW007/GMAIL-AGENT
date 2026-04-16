@@ -1,3 +1,4 @@
+﻿"""Helpers for reading, normalizing, and updating review queue items."""
 from __future__ import annotations
 
 import json
@@ -37,8 +38,12 @@ def normalize_review_item(item: dict[str, Any]) -> dict[str, Any]:
     normalized["comments"] = item.get("comments")
     normalized["reviewer"] = item.get("reviewer")
     normalized["reviewed_at"] = item.get("reviewed_at")
-    normalized["resumable"] = bool(item.get("state_snapshot"))
+    normalized["resumable"] = bool(
+        item.get("checkpoint_thread_id") or item.get("state_snapshot")
+    )
     normalized["legacy"] = not normalized["resumable"]
+    normalized["has_draft"] = bool(item.get("draft"))
+    normalized["can_revise"] = normalized["resumable"] and normalized["has_draft"]
     normalized["kind"] = "review"
     normalized["summary"] = item.get("reason")
     return normalized
@@ -70,6 +75,36 @@ def get_review_item(
         if normalized["review_id"] == review_id:
             return normalized
     raise KeyError(review_id)
+
+
+def find_latest_review_item(
+    *,
+    review_id: str | None = None,
+    checkpoint_thread_id: str | None = None,
+    email_id: str | None = None,
+    status: str | None = None,
+    path: Path = REVIEW_QUEUE_PATH,
+) -> dict[str, Any] | None:
+    items = [normalize_review_item(item) for item in _read_json_file(path)]
+
+    if review_id:
+        items = [item for item in items if item["review_id"] == review_id]
+    if checkpoint_thread_id:
+        items = [
+            item
+            for item in items
+            if item.get("checkpoint_thread_id") == checkpoint_thread_id
+        ]
+    if email_id:
+        items = [item for item in items if item.get("email_id") == email_id]
+    if status:
+        items = [item for item in items if item.get("status") == status]
+
+    if not items:
+        return None
+
+    items.sort(key=lambda item: item.get("created_at", ""), reverse=True)
+    return items[0]
 
 
 def update_review_item(
@@ -107,6 +142,7 @@ def update_review_item(
             reviewer=updated_item.get("reviewer"),
             reviewed_at=updated_item.get("reviewed_at")
             or datetime.now(timezone.utc).isoformat(),
+            review_id=updated_item.get("review_id"),
         )
 
     return updated_item
@@ -135,3 +171,4 @@ def apply_review_decision(
         path=path,
         memory_store=memory_store,
     )
+

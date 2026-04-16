@@ -1,3 +1,4 @@
+﻿/* Page dedicated to live node-by-node execution visibility. */
 import { startTransition, useEffect, useState } from "react";
 
 import ExecutionPanel from "../components/ExecutionPanel";
@@ -46,3 +47,4 @@ export default function ExecutionPage() {
     </main>
   );
 }
+

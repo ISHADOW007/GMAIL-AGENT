@@ -1,3 +1,4 @@
+﻿/* Reusable selectable list component for unread mail, drafts, and review items. */
 import { getItemKey } from "../lib/api";
 
 export default function EmailList({
@@ -53,3 +54,4 @@ export default function EmailList({
     </section>
   );
 }
+

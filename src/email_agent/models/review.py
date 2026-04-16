@@ -1,3 +1,4 @@
+﻿"""Pydantic models for safety results and human review decisions."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -18,3 +19,4 @@ class HumanDecision(BaseModel):
     comments: str | None = None
     reviewer: str | None = None
     reviewed_at: datetime | None = None
+

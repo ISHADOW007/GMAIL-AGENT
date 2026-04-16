@@ -1,3 +1,4 @@
+﻿/* Operational dashboard page that ties together stats, review actions, and detail views. */
 import { startTransition, useEffect, useMemo, useState } from "react";
 
 import ActivityFeed from "../components/ActivityFeed";
@@ -66,7 +67,6 @@ export default function DashboardPage() {
       const allItems = [
         ...dashboard.review_items,
         ...dashboard.unread_emails,
-        ...dashboard.outbox_items,
         ...(dashboard.last_run?.results || []),
       ];
       const updatedSelection = allItems.find(
@@ -140,7 +140,6 @@ export default function DashboardPage() {
 
       <section className="stats-grid">
         <StatCard label="Unread preview" value={dashboard.stats.unread_count} tone="sun" />
-        <StatCard label="Drafts / outbox" value={dashboard.stats.outbox_count} tone="sea" />
         <StatCard label="Human review" value={dashboard.stats.review_count} tone="coral" />
         <StatCard
           label="Processed last run"
@@ -175,21 +174,6 @@ export default function DashboardPage() {
         </div>
 
         <div className="content-grid__right">
-          <EmailList
-            title="Draft trail"
-            subtitle="Most recent local outbox items and saved drafts."
-            items={dashboard.outbox_items}
-            emptyMessage="No local outbox entries yet."
-            onSelect={setSelectedItem}
-            selectedKey={getItemKey(selectedItem)}
-            renderMeta={(item) => (
-              <>
-                <span>{new Date(item.created_at).toLocaleString()}</span>
-                <span className="pill pill--soft">{item.action}</span>
-              </>
-            )}
-          />
-
           <ActivityFeed
             lastRun={dashboard.last_run}
             items={activityFeed}
@@ -203,3 +187,4 @@ export default function DashboardPage() {
     </main>
   );
 }
+

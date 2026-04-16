@@ -1,3 +1,4 @@
+﻿"""Node that drafts a reply using normalized email content plus retrieved context."""
 from __future__ import annotations
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -38,3 +39,4 @@ def make_draft_reply_node(llm: ChatOpenAI):
         return {"draft": draft.model_dump(), "status": "drafted"}
 
     return draft_reply
+

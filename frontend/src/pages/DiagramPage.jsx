@@ -1,3 +1,4 @@
+﻿/* Page dedicated to the visual workflow diagram. */
 const CORE_FLOW = [
   "Fetch unread emails",
   "Normalize email",
@@ -39,7 +40,7 @@ const SYSTEM_FLOW = [
   },
   {
     title: "Mailbox layer",
-    text: "Talks to Gmail, local JSON, or IMAP/SMTP for fetch, send, draft, labels, and processed state.",
+    text: "Talks to Gmail for fetch, thread history, draft creation, sending, labels, and processed state.",
   },
   {
     title: "Memory and review stores",
@@ -85,7 +86,7 @@ export default function DiagramPage() {
               <p>{item.text}</p>
               {index < SYSTEM_FLOW.length - 1 ? (
                 <div className="diagram-arrow diagram-arrow--horizontal" aria-hidden="true">
-                  →
+                  â†’
                 </div>
               ) : null}
             </div>
@@ -107,11 +108,11 @@ export default function DiagramPage() {
         <div className="flowchart-page">
           <div className="flowchart-page__center">
             <FlowBox tone="neutral">START</FlowBox>
-            <div className="diagram-arrow">↓</div>
+            <div className="diagram-arrow">â†“</div>
             {CORE_FLOW.map((step) => (
               <div className="flowchart-page__stack-item" key={step}>
                 <FlowBox tone="neutral">{step}</FlowBox>
-                <div className="diagram-arrow">↓</div>
+                <div className="diagram-arrow">â†“</div>
               </div>
             ))}
             <FlowBox tone="sun" diamond>
@@ -124,12 +125,12 @@ export default function DiagramPage() {
               <div className="flowchart-lane__header">
                 <h3>Ignore lane</h3>
               </div>
-              <div className="diagram-arrow">↓</div>
+              <div className="diagram-arrow">â†“</div>
               {BRANCHES[0].steps.map((step, index) => (
                 <div className="flowchart-lane__step" key={step}>
                   <FlowBox tone="coral">{step}</FlowBox>
                   {index < BRANCHES[0].steps.length - 1 ? (
-                    <div className="diagram-arrow">↓</div>
+                    <div className="diagram-arrow">â†“</div>
                   ) : null}
                 </div>
               ))}
@@ -139,18 +140,18 @@ export default function DiagramPage() {
               <div className="flowchart-lane__header">
                 <h3>Draft lane</h3>
               </div>
-              <div className="diagram-arrow">↓</div>
+              <div className="diagram-arrow">â†“</div>
               <div className="flowchart-lane__step">
                 <FlowBox tone="sea">Retrieve context</FlowBox>
-                <div className="diagram-arrow">↓</div>
+                <div className="diagram-arrow">â†“</div>
               </div>
               <div className="flowchart-lane__step">
                 <FlowBox tone="sea">Draft reply</FlowBox>
-                <div className="diagram-arrow">↓</div>
+                <div className="diagram-arrow">â†“</div>
               </div>
               <div className="flowchart-lane__step">
                 <FlowBox tone="sea">Safety check</FlowBox>
-                <div className="diagram-arrow">↓</div>
+                <div className="diagram-arrow">â†“</div>
               </div>
 
               <div className="delivery-branch">
@@ -160,21 +161,21 @@ export default function DiagramPage() {
                 <div className="delivery-branch__fanout">
                   <div className="delivery-branch__path">
                     <span className="delivery-branch__label">AUTO_SEND=true and safe</span>
-                    <div className="diagram-arrow">↓</div>
+                    <div className="diagram-arrow">â†“</div>
                     <FlowBox tone="sea">Auto send</FlowBox>
                   </div>
                   <div className="delivery-branch__path">
                     <span className="delivery-branch__label">Otherwise</span>
-                    <div className="diagram-arrow">↓</div>
+                    <div className="diagram-arrow">â†“</div>
                     <FlowBox tone="sea">Save draft</FlowBox>
                   </div>
                 </div>
-                <div className="diagram-arrow">↓</div>
+                <div className="diagram-arrow">â†“</div>
               </div>
 
               <div className="flowchart-lane__step">
                 <FlowBox tone="sea">Update memory</FlowBox>
-                <div className="diagram-arrow">↓</div>
+                <div className="diagram-arrow">â†“</div>
               </div>
               <div className="flowchart-lane__step">
                 <FlowBox tone="sea">Mark processed</FlowBox>
@@ -185,18 +186,18 @@ export default function DiagramPage() {
               <div className="flowchart-lane__header">
                 <h3>Human review lane</h3>
               </div>
-              <div className="diagram-arrow">↓</div>
+              <div className="diagram-arrow">â†“</div>
               <div className="flowchart-lane__step">
                 <FlowBox tone="mint">Queue human review</FlowBox>
-                <div className="diagram-arrow">↓</div>
+                <div className="diagram-arrow">â†“</div>
               </div>
               <div className="flowchart-lane__step">
                 <FlowBox tone="mint">Approve / revise / reject</FlowBox>
-                <div className="diagram-arrow">↓</div>
+                <div className="diagram-arrow">â†“</div>
               </div>
               <div className="flowchart-lane__step">
                 <FlowBox tone="mint">Resume if approved</FlowBox>
-                <div className="diagram-arrow">↓</div>
+                <div className="diagram-arrow">â†“</div>
               </div>
 
               <div className="delivery-branch">
@@ -206,21 +207,21 @@ export default function DiagramPage() {
                 <div className="delivery-branch__fanout">
                   <div className="delivery-branch__path">
                     <span className="delivery-branch__label">AUTO_SEND=true and safe</span>
-                    <div className="diagram-arrow">↓</div>
+                    <div className="diagram-arrow">â†“</div>
                     <FlowBox tone="mint">Auto send</FlowBox>
                   </div>
                   <div className="delivery-branch__path">
                     <span className="delivery-branch__label">Otherwise</span>
-                    <div className="diagram-arrow">↓</div>
+                    <div className="diagram-arrow">â†“</div>
                     <FlowBox tone="mint">Save draft</FlowBox>
                   </div>
                 </div>
-                <div className="diagram-arrow">↓</div>
+                <div className="diagram-arrow">â†“</div>
               </div>
 
               <div className="flowchart-lane__step">
                 <FlowBox tone="mint">Update memory</FlowBox>
-                <div className="diagram-arrow">↓</div>
+                <div className="diagram-arrow">â†“</div>
               </div>
               <div className="flowchart-lane__step">
                 <FlowBox tone="mint">Mark processed</FlowBox>
@@ -298,3 +299,4 @@ export default function DiagramPage() {
     </main>
   );
 }
+

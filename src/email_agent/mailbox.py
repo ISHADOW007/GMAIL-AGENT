@@ -1,21 +1,18 @@
+"""Gmail mailbox integration plus the shared mailbox interface used by the workflow."""
 from __future__ import annotations
 
 import base64
-import imaplib
 import json
 import re
-import smtplib
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from email.message import EmailMessage as SmtpEmailMessage
-from email.parser import BytesParser
-from email.policy import default
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from email_agent.config import Settings
-from email_agent.models import DraftReply, EmailMessage, OutboxMessage
+from email_agent.models import DraftReply, EmailMessage
 
 try:
     from google.auth.transport.requests import Request
@@ -61,26 +58,6 @@ def _gmail_outcome_label_name(outcome: str | None, prefix: str) -> str | None:
     return f"{prefix}-{label_suffix}"
 
 
-def _append_human_review(path: Path, original_email: EmailMessage, reason: str) -> None:
-    rows: list[dict[str, Any]] = []
-    if path.exists():
-        rows = json.loads(path.read_text(encoding="utf-8"))
-    rows.append(
-        {
-            "review_id": f"review-{uuid4().hex}",
-            "email_id": original_email.id,
-            "thread_id": original_email.thread_id,
-            "from_address": original_email.from_address,
-            "subject": original_email.subject,
-            "reason": reason,
-            "status": "pending",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }
-    )
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(rows, indent=2), encoding="utf-8")
-
-
 def _append_human_review_with_metadata(
     path: Path,
     original_email: EmailMessage,
@@ -102,6 +79,8 @@ def _append_human_review_with_metadata(
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     if metadata:
+        # Review metadata can include the serialized graph state, which makes
+        # this queue file the handoff point between automation and humans.
         item.update(metadata)
 
     rows.append(item)
@@ -178,10 +157,7 @@ def _extract_gmail_body(payload: dict[str, Any]) -> str:
 
 def _email_message_from_gmail_api_message(raw_message: dict[str, Any]) -> EmailMessage:
     payload = raw_message.get("payload", {})
-    headers = {
-        header["name"].lower(): header["value"]
-        for header in payload.get("headers", [])
-    }
+    headers = {header["name"].lower(): header["value"] for header in payload.get("headers", [])}
     return EmailMessage(
         id=raw_message["id"],
         thread_id=raw_message.get("threadId"),
@@ -228,96 +204,6 @@ class MailboxClient(ABC):
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         raise NotImplementedError
-
-
-class LocalMailboxClient(MailboxClient):
-    def __init__(self, inbox_path: Path, outbox_path: Path) -> None:
-        self.inbox_path = inbox_path
-        self.outbox_path = outbox_path
-        self.review_queue_path = self.outbox_path.parent / "review_queue.json"
-        self.outbox_path.parent.mkdir(parents=True, exist_ok=True)
-
-    def fetch_unread(self, limit: int) -> list[EmailMessage]:
-        emails = [EmailMessage.model_validate(item) for item in self._read_json(self.inbox_path)]
-        unread = [email for email in emails if email.is_unread]
-        return _sort_emails_newest_first(unread)[:limit]
-
-    def save_draft(self, original_email: EmailMessage, draft: DraftReply) -> None:
-        self._append_outbox(
-            OutboxMessage(
-                email_id=original_email.id,
-                action="draft_saved",
-                to_address=original_email.from_address,
-                subject=draft.subject,
-                body=draft.body,
-                created_at=datetime.now(timezone.utc),
-            )
-        )
-
-    def fetch_thread_messages(
-        self,
-        thread_id: str | None,
-        current_email_id: str | None = None,
-    ) -> list[EmailMessage]:
-        if not thread_id:
-            return []
-        emails = [EmailMessage.model_validate(item) for item in self._read_json(self.inbox_path)]
-        thread_messages = [
-            email
-            for email in emails
-            if email.thread_id == thread_id and email.id != current_email_id
-        ]
-        return _sort_emails_oldest_first(thread_messages)
-
-    def send_email(self, original_email: EmailMessage, draft: DraftReply) -> None:
-        self._append_outbox(
-            OutboxMessage(
-                email_id=original_email.id,
-                action="sent",
-                to_address=original_email.from_address,
-                subject=draft.subject,
-                body=draft.body,
-                created_at=datetime.now(timezone.utc),
-            )
-        )
-
-    def mark_processed(self, email_id: str, outcome: str | None = None) -> None:
-        rows = self._read_json(self.inbox_path)
-        updated: list[dict[str, Any]] = []
-        for row in rows:
-            if row.get("id") == email_id:
-                row = {**row, "is_unread": False}
-            updated.append(row)
-        self._write_json(self.inbox_path, updated)
-
-    def flag_for_human_review(
-        self,
-        original_email: EmailMessage,
-        reason: str,
-        metadata: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        return _append_human_review_with_metadata(
-            self.review_queue_path,
-            original_email,
-            reason,
-            metadata=metadata,
-        )
-
-    def _append_outbox(self, message: OutboxMessage) -> None:
-        rows = self._read_json(self.outbox_path)
-        rows.append(message.model_dump(mode="json"))
-        self._write_json(self.outbox_path, rows)
-
-    @staticmethod
-    def _read_json(path: Path) -> list[dict[str, Any]]:
-        if not path.exists():
-            return []
-        return json.loads(path.read_text(encoding="utf-8"))
-
-    @staticmethod
-    def _write_json(path: Path, payload: list[dict[str, Any]]) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
 class GmailMailboxClient(MailboxClient):
@@ -521,125 +407,5 @@ class GmailMailboxClient(MailboxClient):
         return label_id
 
 
-class ImapSmtpMailboxClient(MailboxClient):
-    def __init__(self, settings: Settings) -> None:
-        missing = [
-            name
-            for name, value in {
-                "IMAP_HOST": settings.imap_host,
-                "IMAP_USERNAME": settings.imap_username,
-                "IMAP_PASSWORD": settings.imap_password,
-                "SMTP_HOST": settings.smtp_host,
-                "SMTP_USERNAME": settings.smtp_username,
-                "SMTP_PASSWORD": settings.smtp_password,
-                "DEFAULT_FROM_ADDRESS": settings.default_from_address,
-            }.items()
-            if not value
-        ]
-        if missing:
-            joined = ", ".join(missing)
-            raise ValueError(f"Missing IMAP/SMTP settings: {joined}")
-
-        self.settings = settings
-
-    def fetch_unread(self, limit: int) -> list[EmailMessage]:
-        messages: list[EmailMessage] = []
-        with imaplib.IMAP4_SSL(self.settings.imap_host, self.settings.imap_port) as client:
-            client.login(self.settings.imap_username, self.settings.imap_password)
-            client.select("INBOX")
-            _, data = client.search(None, "UNSEEN")
-            ids = data[0].split()
-            for message_id in ids:
-                _, message_data = client.fetch(message_id, "(RFC822)")
-                raw_message = message_data[0][1]
-                parsed = BytesParser(policy=default).parsebytes(raw_message)
-                body = self._extract_body(parsed)
-                messages.append(
-                    EmailMessage(
-                        id=message_id.decode("utf-8"),
-                        from_address=parsed.get("From", ""),
-                        to_address=parsed.get("To", ""),
-                        subject=parsed.get("Subject", "(No subject)"),
-                        body=body,
-                        received_at=datetime.now(timezone.utc),
-                        is_unread=True,
-                    )
-                )
-        return _sort_emails_newest_first(messages)[:limit]
-
-    def save_draft(self, original_email: EmailMessage, draft: DraftReply) -> None:
-        # SMTP does not create true mailbox drafts, so we persist a local preview.
-        preview_dir = Path("data/drafts")
-        preview_dir.mkdir(parents=True, exist_ok=True)
-        preview_path = preview_dir / f"{original_email.id}.json"
-        preview_path.write_text(
-            json.dumps(
-                {
-                    "email_id": original_email.id,
-                    "to_address": original_email.from_address,
-                    "subject": draft.subject,
-                    "body": draft.body,
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                },
-                indent=2,
-            ),
-            encoding="utf-8",
-        )
-
-    def send_email(self, original_email: EmailMessage, draft: DraftReply) -> None:
-        message = SmtpEmailMessage()
-        message["From"] = self.settings.default_from_address
-        message["To"] = original_email.from_address
-        message["Subject"] = draft.subject
-        message.set_content(draft.body)
-
-        with smtplib.SMTP(self.settings.smtp_host, self.settings.smtp_port) as server:
-            server.starttls()
-            server.login(self.settings.smtp_username, self.settings.smtp_password)
-            server.send_message(message)
-
-    def fetch_thread_messages(
-        self,
-        thread_id: str | None,
-        current_email_id: str | None = None,
-    ) -> list[EmailMessage]:
-        return []
-
-    def mark_processed(self, email_id: str, outcome: str | None = None) -> None:
-        with imaplib.IMAP4_SSL(self.settings.imap_host, self.settings.imap_port) as client:
-            client.login(self.settings.imap_username, self.settings.imap_password)
-            client.select("INBOX")
-            client.store(email_id, "+FLAGS", "\\Seen")
-
-    def flag_for_human_review(
-        self,
-        original_email: EmailMessage,
-        reason: str,
-        metadata: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        review_path = Path("data/review_queue.json")
-        return _append_human_review_with_metadata(
-            review_path,
-            original_email,
-            reason,
-            metadata=metadata,
-        )
-
-    @staticmethod
-    def _extract_body(message: Any) -> str:
-        if message.is_multipart():
-            for part in message.walk():
-                if part.get_content_type() == "text/plain":
-                    return part.get_content()
-            return ""
-        return message.get_content()
-
-
 def build_mailbox_client(settings: Settings) -> MailboxClient:
-    if settings.email_backend == "local":
-        return LocalMailboxClient(settings.local_inbox_path, settings.local_outbox_path)
-    if settings.email_backend == "gmail":
-        return GmailMailboxClient(settings)
-    if settings.email_backend == "imap_smtp":
-        return ImapSmtpMailboxClient(settings)
-    raise ValueError(f"Unsupported EMAIL_BACKEND: {settings.email_backend}")
+    return GmailMailboxClient(settings)

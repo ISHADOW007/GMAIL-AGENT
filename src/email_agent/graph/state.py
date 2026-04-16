@@ -1,3 +1,4 @@
+﻿"""Typed shape of the state object that flows through the LangGraph workflow."""
 from __future__ import annotations
 
 from typing import Literal, TypedDict
@@ -33,3 +34,4 @@ class EmailAgentState(TypedDict, total=False):
         "completed",
         "error",
     ]
+

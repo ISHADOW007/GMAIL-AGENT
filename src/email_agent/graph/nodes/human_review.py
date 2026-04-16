@@ -1,66 +1,72 @@
+"""Node that pauses the graph with LangGraph interrupt until a human responds."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from email_agent.db.mongo import MongoMemoryStore
+from langgraph.types import interrupt
+
 from email_agent.graph.state import EmailAgentState
-from email_agent.mailbox import MailboxClient
-from email_agent.models import (
-    ClassificationResult,
-    DraftReply,
-    EmailMessage,
-    HumanDecision,
-    NormalizedEmail,
-)
+from email_agent.models import ClassificationResult, HumanDecision
 
 
-def make_human_review_node(mailbox: MailboxClient, memory_store: MongoMemoryStore):
+def make_human_review_node():
     def human_review(state: EmailAgentState) -> EmailAgentState:
-        email = EmailMessage.model_validate(state["email"])
-        normalized_email = NormalizedEmail.model_validate(state["normalized_email"])
         classification = ClassificationResult.model_validate(state["classification"])
-        draft = None
-        if "draft" in state:
-            draft = DraftReply.model_validate(state["draft"])
+        decision_payload = interrupt(
+            {
+                "review_id": state.get("review_id"),
+                "email_id": state.get("email_id"),
+                "thread_id": state.get("thread_id"),
+                "reason": classification.reason,
+                "subject": state.get("email", {}).get("subject"),
+                "from_address": state.get("email", {}).get("from_address"),
+                "draft": state.get("draft"),
+                "classification": state.get("classification"),
+            }
+        )
+        human_decision = HumanDecision.model_validate(decision_payload)
 
-        review_item = mailbox.flag_for_human_review(
-            original_email=email,
-            reason=classification.reason,
-            metadata={
-                "draft": draft.model_dump(mode="json") if draft else None,
-                "classification": classification.model_dump(mode="json"),
-                "normalized_email": normalized_email.model_dump(mode="json"),
-                "state_snapshot": {
-                    "email": state["email"],
-                    "email_id": state.get("email_id"),
-                    "thread_id": state.get("thread_id"),
-                    "normalized_email": state.get("normalized_email"),
-                    "thread_messages": state.get("thread_messages", []),
-                    "thread_summary": state.get("thread_summary"),
-                    "memory": state.get("memory", {}),
-                    "retrieved_context": state.get("retrieved_context", {}),
-                    "classification": state.get("classification"),
-                    "draft": state.get("draft"),
-                    "safety_result": state.get("safety_result"),
-                },
-            },
-        )
-        memory_store.create_review_task(
-            normalized_email=normalized_email,
-            classification=classification,
-            draft=draft,
-        )
-        decision = HumanDecision(
-            decision="pending",
-            comments="Queued for human review.",
-            reviewed_at=datetime.now(timezone.utc),
-        )
-        return {
-            "human_decision": decision.model_dump(mode="json"),
-            "delivery_status": "pending_human_review",
-            "status": "pending_human",
-            "final_action": "human_review",
-            "review_id": review_item.get("review_id"),
+        result: EmailAgentState = {
+            "review_id": state.get("review_id", ""),
+            "human_decision": human_decision.model_dump(mode="json"),
         }
+        if human_decision.decision == "approve" and not state.get("draft"):
+            result.update(
+                {
+                    "delivery_status": "approved_without_delivery",
+                    "status": "approved",
+                    "final_action": "approved",
+                }
+            )
+        elif human_decision.decision == "reject":
+            result.update(
+                {
+                    "delivery_status": "rejected_after_review",
+                    "status": "rejected",
+                    "final_action": "reject",
+                }
+            )
+        elif human_decision.decision == "approve":
+            result["status"] = "approved"
+        elif human_decision.decision == "revise":
+            result["status"] = "pending_human"
+        else:
+            result.update(
+                {
+                    "delivery_status": "pending_human_review",
+                    "status": "pending_human",
+                    "final_action": "human_review",
+                }
+            )
+
+        if human_decision.reviewed_at is None:
+            result["human_decision"] = HumanDecision(
+                decision=human_decision.decision,
+                comments=human_decision.comments,
+                reviewer=human_decision.reviewer,
+                reviewed_at=datetime.now(timezone.utc),
+            ).model_dump(mode="json")
+
+        return result
 
     return human_review

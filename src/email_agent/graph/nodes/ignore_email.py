@@ -1,3 +1,4 @@
+﻿"""Node for emails that should be ignored rather than answered."""
 from __future__ import annotations
 
 from email_agent.graph.state import EmailAgentState
@@ -12,3 +13,4 @@ def make_ignore_email_node():
         }
 
     return ignore_email
+

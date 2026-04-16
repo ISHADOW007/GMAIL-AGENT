@@ -1,3 +1,4 @@
+﻿"""Node that asks the model to classify the email intent, urgency, risk, and action."""
 from __future__ import annotations
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -49,3 +50,4 @@ def make_classify_email_node(llm: ChatOpenAI):
         }
 
     return classify_email
+

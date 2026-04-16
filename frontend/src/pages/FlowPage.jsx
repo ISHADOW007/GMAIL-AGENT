@@ -1,9 +1,10 @@
+﻿/* Explanation-focused page describing how the workflow behaves conceptually. */
 const FLOW_STEPS = [
   {
     id: "fetch",
     title: "1. Fetch unread emails",
     reason:
-      "The mailbox layer pulls unread messages from Gmail, local JSON, or IMAP/SMTP and normalizes provider differences before the graph starts.",
+      "The mailbox layer pulls unread messages from Gmail and normalizes the provider response before the graph starts.",
     outputs: ["email.id", "thread_id", "subject", "body", "received_at"],
   },
   {
@@ -144,7 +145,7 @@ const BRANCH_COLUMNS = [
 const ARCHITECTURE_BLOCKS = [
   {
     title: "Mailbox layer",
-    text: "Handles Gmail/local/IMAP transport concerns so the workflow stays provider-agnostic.",
+    text: "Handles Gmail transport, threading, drafting, sending, labels, and review queue handoff.",
   },
   {
     title: "LangGraph workflow",
@@ -193,7 +194,7 @@ export default function FlowPage() {
               <p>{block.text}</p>
               {index < ARCHITECTURE_BLOCKS.length - 1 ? (
                 <span className="architecture-arrow" aria-hidden="true">
-                  →
+                  â†’
                 </span>
               ) : null}
             </div>
@@ -260,7 +261,7 @@ export default function FlowPage() {
                       <span className="pill pill--soft">{nodeName}</span>
                       {index < branch.nodes.length - 1 ? (
                         <span className="branch-node__arrow" aria-hidden="true">
-                          ↓
+                          â†“
                         </span>
                       ) : null}
                     </div>
@@ -332,3 +333,4 @@ export default function FlowPage() {
     </main>
   );
 }
+

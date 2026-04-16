@@ -1,3 +1,4 @@
+﻿/* Top-level frontend shell that switches between dashboard, execution, flow, and diagram pages. */
 import { useEffect, useState } from "react";
 
 import DashboardPage from "./pages/DashboardPage";
@@ -75,3 +76,4 @@ export default function App() {
     </div>
   );
 }
+

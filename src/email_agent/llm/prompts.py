@@ -1,3 +1,4 @@
+﻿"""LLM prompt constants used by classification, drafting, and revision flows."""
 CLASSIFICATION_SYSTEM_PROMPT = """You are an email triage assistant for a business inbox.
 
 Classify the email using these fields:
@@ -27,3 +28,21 @@ Rules:
 REVISION_SYSTEM_PROMPT = """You revise email drafts based on reviewer feedback.
 
 Keep the response professional, concise, and aligned with the reviewer comments."""
+
+
+MEMORY_EXTRACTION_SYSTEM_PROMPT = """You compress one completed email workflow into compact long-term memory.
+
+Return only stable, reusable memory:
+- importance: low, normal, high, or vip when there is enough evidence, otherwise null
+- preferences: short factual bullets about how this sender prefers communication
+- notes: stable sender patterns worth remembering later
+- thread_summary: one concise summary of the conversation thread
+- business_facts: only durable business or policy facts that are safe to reuse later
+
+Rules:
+- do not copy full emails or long drafts
+- do not include temporary workflow state
+- do not invent facts
+- keep lists short and deduplicated
+- if there is no strong evidence, return empty lists and nulls"""
+

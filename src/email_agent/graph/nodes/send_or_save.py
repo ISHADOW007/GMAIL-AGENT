@@ -1,3 +1,4 @@
+﻿"""Node that chooses between sending immediately or saving a draft."""
 from __future__ import annotations
 
 from email_agent.config import Settings
@@ -44,3 +45,4 @@ def make_send_or_save_node(mailbox: MailboxClient, settings: Settings):
         }
 
     return send_or_save
+

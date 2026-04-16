@@ -1,3 +1,4 @@
+﻿"""Node that converts the raw inbound email into a cleaner normalized representation."""
 from __future__ import annotations
 
 from email_agent.graph.state import EmailAgentState
@@ -34,3 +35,4 @@ def make_normalize_email_node():
         }
 
     return normalize_email
+
